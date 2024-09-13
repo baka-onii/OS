@@ -7,10 +7,10 @@
 class Process   // class to make processes into seperate objects
 {
 public:
-    int ProcessID, ArrivalTime, BurstTime;
+    int ProcessID, ArrivalTime, BurstTime, realBurst, CompletionTime = 0, TurnAroundTime = 0, WaitingTime = 0;
 
     Process(int id, int at, int bt = 0)
-        : ProcessID(id), ArrivalTime(at), BurstTime(bt) {}
+        : ProcessID(id), ArrivalTime(at), BurstTime(bt), realBurst(bt) {}
 
     bool operator<(const Process& other) const {
         return ArrivalTime < other.ArrivalTime;
@@ -22,7 +22,7 @@ public:
 
     Process& operator--() {
         --BurstTime;
-        return *this; 
+        return *this;
     }
 
     Process operator--(int) {
@@ -30,24 +30,38 @@ public:
         --BurstTime;
         return temp; // Return the copy (before decrement)
     }
+
+    Process operator++(int) {
+        Process temp = *this;
+        ++CompletionTime;
+        return temp;
+    }
+
+    Process operator++() {
+        ++CompletionTime;
+        return *this;
+    }
 };
 
-void Execute(Process& a)
+int Execute(Process& a)
 {
-    a.BurstTime--;
+    int temp;
+    temp = a.BurstTime;
+    a.BurstTime = 0;
+    return temp;
 }
 
 int main() {
     int processTime = 0;
     int numberProcesses = 0;
-
+    std::vector<Process> completedProcesses;
     std::vector<Process> processes;
 
     std::cout << "Enter number of Processes: " << std::endl;
     std::cin >> numberProcesses;
 
     for (int process = 1; process <= numberProcesses; process++) {
-        int id, at, bt;     // enter processes and make seperate objects
+        int at, bt;     // enter processes and make seperate objects
 
         std::cout << "Enter Arrival Time for Process " << process << std::endl;
         std::cin >> at;
@@ -70,56 +84,76 @@ int main() {
 
     std::cout << "\nExecuting Processes by Non-Preemptive SJF: " << std::endl;
 
+    while (!processes.empty())  // vector is empty / processes are finished
     {
-        int tracker = 0;
-        while (!processes.empty())  // vector is empty / processes are finished
-        {
-            std::vector<Process> readyProcesses;
-            for (int i = 0; i < processes.size(); i++) {    // traverse vector to find processes ready to execute
+        int timeElapsed;
+        std::vector<Process*> readyProcesses;
+        for (int i = 0; i < processes.size(); i++) {    // traverse vector to find processes ready to execute
 
-                if (processes[i].ArrivalTime <= processTime)
-                    readyProcesses.emplace_back(processes[i]);
-            }
-
-            if (readyProcesses.empty())
-            {
-                processTime++;
-                continue;
-            }
-
-            if (!readyProcesses.empty()) {   // track the processes
-                auto minBurstTime = std::min_element(readyProcesses.begin(), readyProcesses.end(), [](const Process& a, const Process& b) {
-                    return a.BurstTime < b.BurstTime;
-                    });
-
-                if (minBurstTime != readyProcesses.end()) {
-                    Process priorityElement = *minBurstTime;
-                    auto it = std::find(processes.begin(), processes.end(), priorityElement);
-                    std::cout << "\nExecuting Process " << it->ProcessID << std::endl;
-                    Execute(*it);    // Execute the process for 1 cycle (-1 BT)
-
-                    if (it->BurstTime <= 0)
-                    {
-                        std::cout << "\nProcess " << it->ProcessID << " Completed\n";
-                        processes.erase(it);   // Process Completed
-                    }
-                }
-
-                processTime++;
-                
-                for (const auto& p : processes) {   // print processes
-                    std::cout << "ProcessID: " << p.ProcessID
-                        << ", ArrivalTime: " << p.ArrivalTime
-                        << ", BurstTime: " << p.BurstTime << std::endl;
-                }
-                std::cout << "\nCurrent CPU Time: " << processTime << "\n" << std::endl;
-            }
-            
+            if (processes[i].ArrivalTime <= processTime)
+                readyProcesses.emplace_back(&processes[i]);
         }
-        if (processes.empty())
+
+        if (readyProcesses.empty())
         {
-            std::cout << "Operation Completed!" << std::endl;
+            processTime++;
+            continue;
         }
+
+        if (!readyProcesses.empty()) {   // track the processes
+            auto minBurstTime = std::min_element(readyProcesses.begin(), readyProcesses.end(), [](const Process* a, const Process* b) {
+                return a->BurstTime < b->BurstTime;
+                });
+
+            if (minBurstTime != readyProcesses.end()) {     // minimum BT in ready
+                Process* priorityElement = *minBurstTime;
+                auto it = std::find(processes.begin(), processes.end(), *priorityElement);   // minimum bt in processes
+                std::cout << "\nExecuting Process " << it->ProcessID << std::endl;
+                timeElapsed = Execute(*it);    // Execute the process for 1 cycle (-1 BT)
+
+                if (it->BurstTime <= 0)
+                {
+                    processTime += timeElapsed;
+                    it->CompletionTime = processTime;
+                    completedProcesses.emplace_back(*it);
+                    std::cout << "\nProcess " << it->ProcessID << " Completed\n";
+                    processes.erase(it);   // Process Completed
+                }
+            }
+
+            //processTime++;
+
+            for (const auto& p : processes)
+            {   // print processes
+                std::cout << "ProcessID: " << p.ProcessID
+                    << ", ArrivalTime: " << p.ArrivalTime
+                    << ", BurstTime: " << p.BurstTime
+                    << ", Completion Time: " << p.CompletionTime << std::endl;
+            }
+            std::cout << "\nCurrent CPU Time: " << processTime << "\n" << std::endl;
+        }
+
+    }
+    if (processes.empty())
+    {
+        std::cout << "pID   " << "AT  " << "BT  " << "CT  " << "TAT  " << "WT" << std::endl;
+        for (auto& p : completedProcesses)
+        {
+            p.TurnAroundTime = p.CompletionTime - p.ArrivalTime;
+            p.WaitingTime = p.TurnAroundTime - p.realBurst;
+        }
+
+        std::sort(completedProcesses.begin(), completedProcesses.end(), [](const Process& a, const Process& b) {
+            return a.ProcessID < b.ProcessID;
+            });
+
+
+        for (const auto& p : completedProcesses)
+        {
+            std::cout << p.ProcessID << "    " << p.ArrivalTime << "    " << p.realBurst << "    " << p.CompletionTime << "    " << p.TurnAroundTime << "    " << p.WaitingTime << std::endl;
+        }
+
+        std::cout << "Operations Completed!\n" << "Process Report: " << std::endl;
     }
 
     return 0;

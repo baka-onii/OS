@@ -79,7 +79,7 @@ int main() {
             << ", BurstTime: " << p.BurstTime << std::endl;
     }
 
-    std::cout << "\nExecuting Processes by Non-Preemptive SJF: " << std::endl;
+    std::cout << "\nExecuting Processes by Preemptive SJF: " << std::endl;
 
         while (!processes.empty())  // vector is empty / processes are finished
         {

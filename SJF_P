@@ -12,7 +12,7 @@ public:
     Process(int id, int at, int bt = 0)
         : ProcessID(id), ArrivalTime(at), BurstTime(bt), realBurst(bt) {}
 
-    bool operator<(const Process& other) const {
+    bool operator<(const Process& other) const {        //operator overloading to compare class elements
         return ArrivalTime < other.ArrivalTime;
     }
 
@@ -45,7 +45,7 @@ public:
 
 void Execute(Process& a)
 {
-    a.BurstTime--;
+    a.BurstTime--;        //simple representation of execution by lowering the burst time
 }
 
 int main() {
